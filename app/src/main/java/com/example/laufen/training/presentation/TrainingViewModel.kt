@@ -23,7 +23,7 @@ class TrainingViewModel: ViewModel() {
     val currentPosition = _latLng.asStateFlow()
     var isProviderInitialised = false
     private lateinit var locationProvider: LocationProvider
-    val currentLocationObserver = Observer<LatLng>() {
+    private val currentLocationObserver = Observer<LatLng>() {
         updatePosition(it)
     }
 
