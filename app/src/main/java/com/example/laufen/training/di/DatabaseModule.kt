@@ -12,7 +12,7 @@ import dagger.hilt.components.SingletonComponent
 
 @Module
 @InstallIn(SingletonComponent::class)
-class ApplicationModule {
+class DatabaseModule {
     @Provides
     fun provideDatabase(trainingDatabase: TrainingDatabase): TrainingDao {
         return trainingDatabase.trainingDao
