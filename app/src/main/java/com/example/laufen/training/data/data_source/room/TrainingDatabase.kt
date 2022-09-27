@@ -9,7 +9,7 @@ import com.example.laufen.training.domain.entity.Training
     version = 1
 )
 abstract class TrainingDatabase: RoomDatabase() {
-    abstract val TrainingDao: TrainingDao
+    abstract val trainingDao: TrainingDao
 
     companion object {
         val name = "training_database"

@@ -15,7 +15,7 @@ import dagger.hilt.components.SingletonComponent
 class ApplicationModule {
     @Provides
     fun provideDatabase(trainingDatabase: TrainingDatabase): TrainingDao {
-        return trainingDatabase.TrainingDao
+        return trainingDatabase.trainingDao
     }
 
     @Provides
