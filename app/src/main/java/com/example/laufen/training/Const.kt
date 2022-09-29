@@ -15,4 +15,14 @@ object Const {
     const val FASTEST_LOCATION_INTERVAL = 2000L
 
     const val TIMER_UPDATE_INTERVAL = 50L
+
+    val daysOfWeek = listOf(
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+    )
 }

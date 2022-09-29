@@ -5,8 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.NotificationManager.IMPORTANCE_LOW
 import android.app.PendingIntent
-import android.app.PendingIntent.FLAG_IMMUTABLE
-import android.app.PendingIntent.FLAG_UPDATE_CURRENT
+import android.app.PendingIntent.*
 import android.content.Context
 import android.content.Intent
 import android.location.Location
@@ -17,11 +16,8 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
-import com.example.laufen.MainActivity
 import com.example.laufen.R
 import com.example.laufen.training.Const.ACTION_PAUSE
-import com.example.laufen.training.Const.ACTION_SHOW_TRAINING_SCREEN
 import com.example.laufen.training.Const.ACTION_START_OR_RESUME
 import com.example.laufen.training.Const.ACTION_STOP
 import com.example.laufen.training.Const.FASTEST_LOCATION_INTERVAL
@@ -31,26 +27,38 @@ import com.example.laufen.training.Const.NOTIFICATION_CHANNEL_NAME
 import com.example.laufen.training.Const.NOTIFICATION_ID
 import com.example.laufen.training.Const.TIMER_UPDATE_INTERVAL
 import com.example.laufen.training.utils.Common
+import com.example.laufen.training.utils.Formatter
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.SphericalUtil
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 private const val TAG = "service"
 typealias Polyline = MutableList<LatLng>
 typealias Polylines = MutableList<Polyline>
 
+@AndroidEntryPoint
 class TrainingService : LifecycleService() {
 
     private var isFirstRun = true
+    var isKilled = false
 
-    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    @Inject
+    lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+
+    @Inject
+    lateinit var baseNotificationBuilder: NotificationCompat.Builder
+
+    private lateinit var curNotificationBuilder: NotificationCompat.Builder
 
     private val timeInSeconds = MutableLiveData<Long>()
 
@@ -58,22 +66,26 @@ class TrainingService : LifecycleService() {
         val isTracking = MutableLiveData<Boolean>()
         val pathPoints = MutableLiveData<Polylines>()
         val timeInMillis = MutableLiveData<Long>()
+        val distance = MutableLiveData<Long>()
     }
 
     private fun postInitialValues() {
         isTracking.postValue(false)
         pathPoints.postValue(mutableListOf())
-        timeInSeconds.postValue(0L)
+        distance.postValue(0L)
         timeInMillis.postValue(0L)
+        timeInSeconds.postValue(0L)
     }
 
     override fun onCreate() {
         super.onCreate()
+        curNotificationBuilder = baseNotificationBuilder
         postInitialValues()
         fusedLocationProviderClient = FusedLocationProviderClient(this)
 
         isTracking.observe(this) {
             updateLocationTracking(it)
+            updateNotificationState(it)
         }
     }
 
@@ -81,7 +93,7 @@ class TrainingService : LifecycleService() {
         intent?.let {
             when (it.action) {
                 ACTION_START_OR_RESUME -> {
-                    if(isFirstRun) {
+                    if (isFirstRun) {
                         startForegroundService()
                         isFirstRun = false
                     } else {
@@ -92,7 +104,7 @@ class TrainingService : LifecycleService() {
                     pauseService()
                 }
                 ACTION_STOP -> {
-                    Log.d(TAG, "Stopped service")
+                    killService()
                 }
                 else -> {}
             }
@@ -101,8 +113,8 @@ class TrainingService : LifecycleService() {
     }
 
     private fun updateLocationTracking(isTracking: Boolean) {
-        if(isTracking) {
-            if(Common.checkIfPermissionGranted(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+        if (isTracking) {
+            if (Common.checkIfPermissionGranted(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 val request = LocationRequest().apply {
                     interval = LOCATION_UPDATE_INTERVAL
                     fastestInterval = FASTEST_LOCATION_INTERVAL
@@ -122,9 +134,9 @@ class TrainingService : LifecycleService() {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             super.onLocationResult(result)
-            if(isTracking.value!!) {
+            if (isTracking.value!!) {
                 result.locations.let { locations ->
-                    for(location in locations) {
+                    for (location in locations) {
                         addPathPoint(location)
                         Log.d(TAG, "NEW LOCATION: ${location.latitude}, ${location.longitude}")
                     }
@@ -172,6 +184,20 @@ class TrainingService : LifecycleService() {
                 last().add(pos)
                 pathPoints.postValue(this)
             }
+            updateDistance()
+        }
+    }
+
+    private fun updateDistance() {
+        if (pathPoints.value?.isNotEmpty() == true) {
+            if (pathPoints.value!!.last().size > 1) {
+                val list = pathPoints.value!!.last()
+                val size = pathPoints.value!!.last().size
+                val dist = SphericalUtil.computeDistanceBetween(
+                    list[size - 1], list[size - 2]
+                )
+                distance.postValue(dist.toLong())
+            }
         }
     }
 
@@ -187,29 +213,70 @@ class TrainingService : LifecycleService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE)
                 as NotificationManager
 
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannel(notificationManager)
         }
 
-        val notificationBuilder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .setSmallIcon(R.drawable.ic_round_directions_run_24)
-            .setContentTitle("Running App")
-            .setContentText("00:00:00")
-            .setContentIntent(getMainActivityPendingIntent())
+        startForeground(NOTIFICATION_ID, baseNotificationBuilder.build())
 
-        startForeground(NOTIFICATION_ID, notificationBuilder.build())
+        timeInSeconds.observe(this) {
+            if (!isKilled) {
+                val notification = curNotificationBuilder
+                    .setContentText(
+                        Formatter.formatTime(
+                            it * 1000L
+                        ) + "\n" + Formatter.formatDistance(
+                            distance.value ?: 0
+                        ) + " km"
+                    )
+                    .build()
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+        }
     }
 
-    private fun getMainActivityPendingIntent() = PendingIntent.getActivity(
-        this,
-        0,
-        Intent(this, MainActivity::class.java).also {
-            it.action = ACTION_SHOW_TRAINING_SCREEN
-        },
-        FLAG_UPDATE_CURRENT + FLAG_IMMUTABLE
-    )
+    private fun updateNotificationState(isTracking: Boolean) {
+        val actionText = if (isTracking) "Pause" else "Resume"
+        val actionIcon = if (isTracking) {
+            R.drawable.ic_round_pause_circle_outline_24
+        } else {
+            R.drawable.ic_round_play_circle_outline_24
+        }
+        val pendingIntent = if (isTracking) {
+            val intent = Intent(this, TrainingService::class.java).apply {
+                action = ACTION_PAUSE
+            }
+            getService(
+                this,
+                1,
+                intent,
+                FLAG_UPDATE_CURRENT + FLAG_IMMUTABLE
+            )
+        } else {
+            val intent = Intent(this, TrainingService::class.java).apply {
+                action = ACTION_START_OR_RESUME
+            }
+            getService(
+                this,
+                2,
+                intent,
+                FLAG_UPDATE_CURRENT + FLAG_IMMUTABLE
+            )
+        }
+
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        curNotificationBuilder.javaClass.getDeclaredField("mActions").apply {
+            isAccessible = true
+            set(curNotificationBuilder, ArrayList<NotificationCompat.Action>())
+        }
+        if (!isKilled) {
+            curNotificationBuilder = curNotificationBuilder
+                .addAction(actionIcon, actionText, pendingIntent)
+            notificationManager.notify(NOTIFICATION_ID, curNotificationBuilder.build())
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(notificationManager: NotificationManager) {
@@ -219,5 +286,13 @@ class TrainingService : LifecycleService() {
             IMPORTANCE_LOW
         )
         notificationManager.createNotificationChannel(channel)
+    }
+    fun killService() {
+        isKilled = true
+        isFirstRun = true
+        pauseService()
+        postInitialValues()
+        stopForeground(true)
+        stopSelf()
     }
 }
