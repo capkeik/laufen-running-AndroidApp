@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.laufen.R
 import com.example.laufen.training.permission.PermissionState
@@ -24,12 +25,13 @@ import com.example.laufen.training.presentation.PermissionUI
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.JointType
 import com.google.maps.android.compose.*
+import dagger.hilt.android.lifecycle.HiltViewModel
 
 private const val TAG = "training_screen"
 
 @Composable
 fun TrainingScreen() {
-    val viewModel: TrainingViewModel = viewModel()
+    val viewModel: TrainingViewModel = hiltViewModel()
     val context = LocalContext.current
     val isTracking = viewModel.isTracking.collectAsState()
     val curPosition = viewModel.curPosition.collectAsState()
@@ -91,7 +93,7 @@ fun TrainingScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(bottom = 64.dp),
             verticalArrangement = Arrangement.Bottom,
             horizontalAlignment = Alignment.CenterHorizontally
         ){

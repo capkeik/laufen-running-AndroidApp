@@ -1,6 +1,9 @@
 package com.example.laufen.training
 
 object Const {
+    const val SCHEDULE_PREFS_FILE = "SCHEDULE_PREFS_FILE"
+    const val SCHEDULE_PREFS_TAG = "SCHEDULE_PREFS_TAG"
+
     const val ACTION_SHOW_TRAINING_SCREEN = "ACTION_SHOW_TRAINING_SCREEN"
 
     const val ACTION_START_OR_RESUME = "ACTION_START_OR_RESUME"

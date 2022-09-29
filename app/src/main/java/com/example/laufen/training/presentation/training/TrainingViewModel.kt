@@ -32,7 +32,7 @@ data class TrainingInfoState(
 
 @HiltViewModel
 class TrainingViewModel @Inject constructor(
-    val trainingRepository: TrainingRepository
+    private val trainingRepository: TrainingRepository
 ): ViewModel() {
     val isLocated = false
     private var _isTracking = MutableStateFlow(false)

@@ -10,6 +10,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.laufen.navigation.App
 import com.example.laufen.training.data.data_source.room.TrainingDao
 import com.example.laufen.training.presentation.training.TrainingScreen
 import com.example.laufen.ui.theme.LaufenTheme
@@ -31,7 +32,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    TrainingScreen()
+                    App()
                 }
             }
         }
