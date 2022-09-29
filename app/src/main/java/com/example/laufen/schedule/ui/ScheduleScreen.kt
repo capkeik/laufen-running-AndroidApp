@@ -12,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.laufen.schedule.data.entity.ScheduleEntity
 import com.example.laufen.schedule.data.format
@@ -50,6 +52,12 @@ fun ScheduleScreen() {
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = "Schedule",
+            fontWeight = FontWeight.Bold,
+            fontSize = 48.sp
+        )
+        Spacer(modifier = Modifier.padding(8.dp))
         if (openDialog.value) {
             DayOfWeekPicker(onDowClick = {
                 dayOfWeek = it
@@ -62,7 +70,7 @@ fun ScheduleScreen() {
         Button(
             onClick = { timePickerDialog.show() }
         ) {
-            Text(text = "Plan Training", color = Color.White)
+            Text(text = "Schedule Training", color = Color.White)
         }
         LazyColumn {
             items(viewState.value.schedule) { item: ScheduleEntity ->

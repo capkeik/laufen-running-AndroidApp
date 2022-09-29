@@ -6,7 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.laufen.navigation.nested.ActivityScreens
 import com.example.laufen.navigation.nested.ProgressScreens
-import com.example.laufen.schedule.ui.ProgressScreen
+import com.example.laufen.training.presentation.history.ProgressScreen
 import com.example.laufen.schedule.ui.ScheduleScreen
 import com.example.laufen.training.presentation.training.TrainingScreen
 
@@ -26,7 +26,7 @@ fun MainNavHost(
             TrainingScreen()
         }
         composable(ProgressScreens.Progress.route) {
-            ProgressScreen(navController)
+            ProgressScreen()
         }
         composable(ProgressScreens.Schedule.route) {
             ScheduleScreen()

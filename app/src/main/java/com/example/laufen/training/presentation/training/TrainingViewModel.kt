@@ -148,7 +148,7 @@ class TrainingViewModel @Inject constructor(
 
     fun saveTrainingToDB() {
         val training = Training(
-            timestamp = Calendar.getInstance().timeInMillis,
+            timestamp = System.currentTimeMillis(),
             duration = _trainingInfoState.value.duration,
             distance = _trainingInfoState.value.distance,
             burnedCalories = _trainingInfoState.value.calories.toInt(),

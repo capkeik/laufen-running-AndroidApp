@@ -145,7 +145,7 @@ fun TrainingScreen() {
             ) {
                 IconButton(
                     onClick = { viewModel.stopTracking(context) },
-                    enabled = isTracking.value,
+                    enabled = !isTracking.value,
                 ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Cansel training")
                 }
