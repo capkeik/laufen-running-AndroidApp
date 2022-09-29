@@ -2,31 +2,40 @@ package com.example.laufen.training.presentation
 
 import android.Manifest
 import android.util.Log
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.laufen.R
 import com.example.laufen.training.Const.ACTION_START_OR_RESUME
 import com.example.laufen.training.permission.PermissionState
 import com.example.laufen.training.service.Polyline
+import com.example.laufen.training.utils.Common
+import com.example.laufen.training.utils.Formatter
+import com.example.laufen.ui.theme.LaufenTheme
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.JointType
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 
 private const val TAG = "training_screen"
+
 @Composable
 fun TrainingScreen() {
     val viewModel: TrainingViewModel = viewModel()
     val context = LocalContext.current
-    val distance = viewModel.curDistance.collectAsState()
     val curPosition = viewModel.curPosition.collectAsState()
     val updateCounter = viewModel.updateCounter.collectAsState()
     val polylines = viewModel.polylines.collectAsState()
@@ -66,7 +75,7 @@ fun TrainingScreen() {
         val uiSettings by remember { mutableStateOf(MapUiSettings(myLocationButtonEnabled = true)) }
 
 
-        Column() {
+        Column {
             Text(
                 text = "${curPosition.value} / ${updateCounter.value}"
             )
@@ -76,23 +85,11 @@ fun TrainingScreen() {
                 uiSettings = uiSettings,
                 properties = mapProperties,
             ) {
-                for (p in listOf<List<LatLng>>(
-                    listOf(
-                        LatLng(55.79328781735486, 49.12508607707867),
-                        LatLng(55.793782400477795, 49.12514508567111),
-                        LatLng(55.79434935389224, 49.12528992494345),
-                        LatLng(55.794479028247544, 49.125300653778446),
-                        LatLng(55.794587592491986, 49.125150450088604)
-                    ),
-                    listOf(
-                        LatLng(55.79361351914194, 49.1241204819297),
-                        LatLng(55.79423777328747, 49.123160251198236),
-                        LatLng(55.79383969933607, 49.12167967196982)
-                    )
-                )) {
+                for (p in polylines.value) {
                     Polyline(
                         points = p,
-                        jointType = JointType.ROUND
+                        jointType = JointType.ROUND,
+                        color = Color.Red
                     )
                 }
             }
@@ -101,36 +98,87 @@ fun TrainingScreen() {
 }
 
 @Composable
-fun Map(
-    modifier: Modifier,
-    cameraPositionState: CameraPositionState,
-    uiSettings: MapUiSettings,
-    mapProperties: MapProperties
-) {
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState,
-        uiSettings = uiSettings,
-        properties = mapProperties,
+fun TrainingInfo(trainingInfoState: TrainingInfoState) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(224.dp)
+            .padding(8.dp)
     ) {
-        for (p in listOf<List<LatLng>>(
-            listOf(
-                LatLng(55.79328781735486, 49.12508607707867),
-                LatLng(55.793782400477795, 49.12514508567111),
-                LatLng(55.79434935389224, 49.12528992494345),
-                LatLng(55.794479028247544, 49.125300653778446),
-                LatLng(55.794587592491986, 49.125150450088604)
-            ),
-            listOf(
-                LatLng(55.79361351914194, 49.1241204819297),
-                LatLng(55.79423777328747, 49.123160251198236),
-                LatLng(55.79383969933607, 49.12167967196982)
-            )
-        )) {
-            Polyline(
-                points = p,
-                jointType = JointType.ROUND
-            )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = Formatter.formatTime(trainingInfoState.duration),
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                Text(
+                    text = "Duration",
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                InfoItem(
+                    value = Formatter.formatDistance(
+                        trainingInfoState.distance
+                    ),
+                    name = "Distance (km)"
+                )
+                InfoItem(
+                    value = Formatter.formatSpeed(
+                        trainingInfoState.avgSpeed
+                    ),
+                    name = "Avg. speed (km/h)"
+                )
+                InfoItem(
+                    value = trainingInfoState.calories.toString(),
+                    name = "Calories (Cal)"
+                )
+            }
+
         }
+    }
+}
+
+@Preview
+@Composable
+fun TrainingInfoPrev() {
+    TrainingInfo(
+        trainingInfoState = TrainingInfoState(
+            duration = 4382749,
+            distance = 15937,
+            avgSpeed = 2,
+            calories = 673,
+        )
+    )
+}
+
+@Composable
+fun InfoItem(
+    value: String,
+    name: String
+) {
+    Column(
+        modifier = Modifier.padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

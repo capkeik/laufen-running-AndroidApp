@@ -11,7 +11,14 @@ import com.example.laufen.training.service.TrainingService
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
+data class TrainingInfoState(
+    val avgSpeed: Int = 0,
+    val distance: Long = 0L,
+    val duration: Long = 0L,
+    val calories: Long = 0L,
+)
 
 class TrainingViewModel: ViewModel() {
     val isServiceInited = false
@@ -31,16 +38,10 @@ class TrainingViewModel: ViewModel() {
     private val millisObserver = Observer<Long> { _curTimeInMillis = it }
     private val pathObserver = Observer<Polylines> { updatePathPoints(it) }
 
-    private val _curAvgSpeed = MutableStateFlow(0)
-    private val _curDistance = MutableStateFlow(0L)
-    private val _curDuration = MutableStateFlow(0L)
-    private val _curCalories = MutableStateFlow(0L)
+    private val _trainingInfoState = MutableStateFlow(TrainingInfoState())
     private val _curPosition = MutableStateFlow(LatLng(1.35, 103.87))
 
-    val curAvgSpeed = _curAvgSpeed.asStateFlow()
-    val curDistance = _curDistance.asStateFlow()
-    val curDuration = _curDuration.asStateFlow()
-    val curCalories = _curCalories.asStateFlow()
+    val trainingInfoState = _trainingInfoState.asStateFlow()
     val curPosition = _curPosition.asStateFlow()
     val polylines = _pathPoints.asStateFlow()
 
@@ -48,19 +49,27 @@ class TrainingViewModel: ViewModel() {
     val updateCounter = _updateCounter.asStateFlow()
 
     private fun setAvgSpeed(value: Int) {
-        _curAvgSpeed.value = value
+        _trainingInfoState.update {
+            it.copy(avgSpeed = value)
+        }
     }
 
     private fun setDuration(value: Long) {
-        _curDuration.value = value
+        _trainingInfoState.update {
+            it.copy(duration = value)
+        }
     }
 
     private fun setDistance(value: Long) {
-        _curDistance.value = value
+        _trainingInfoState.update {
+            it.copy(distance = value)
+        }
     }
 
     private fun setCalories(value: Long) {
-        _curCalories.value = value
+        _trainingInfoState.update {
+            it.copy(calories = value)
+        }
     }
 
     private fun updatePathPoints(polylines: Polylines) {
@@ -81,14 +90,14 @@ class TrainingViewModel: ViewModel() {
 
     init {
         TrainingService.isTracking.observeForever(trackingObserver)
-//        TrainingService.curTimeInMillis.observeForever(millisObserver)
+        TrainingService.timeInMillis.observeForever(millisObserver)
         TrainingService.pathPoints.observeForever(pathObserver)
     }
 
     override fun onCleared() {
         with(TrainingService) {
             isTracking.removeObserver(trackingObserver)
-//            curTimeInMillis.removeObserver(millisObserver)
+            timeInMillis.removeObserver(millisObserver)
             pathPoints.removeObserver(pathObserver)
         }
         super.onCleared()

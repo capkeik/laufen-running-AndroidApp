@@ -29,6 +29,7 @@ import com.example.laufen.training.Const.LOCATION_UPDATE_INTERVAL
 import com.example.laufen.training.Const.NOTIFICATION_CHANNEL_ID
 import com.example.laufen.training.Const.NOTIFICATION_CHANNEL_NAME
 import com.example.laufen.training.Const.NOTIFICATION_ID
+import com.example.laufen.training.Const.TIMER_UPDATE_INTERVAL
 import com.example.laufen.training.utils.Common
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -36,8 +37,12 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-private val TAG = "service"
+private const val TAG = "service"
 typealias Polyline = MutableList<LatLng>
 typealias Polylines = MutableList<Polyline>
 
@@ -57,15 +62,9 @@ class TrainingService : LifecycleService() {
 
     private fun postInitialValues() {
         isTracking.postValue(false)
-        pathPoints.postValue(mutableListOf(
-            mutableListOf(
-                LatLng(55.79328781735486, 49.12508607707867),
-                LatLng(55.793782400477795, 49.12514508567111),
-                LatLng(55.79434935389224, 49.12528992494345),
-                LatLng(55.794479028247544, 49.125300653778446),
-                LatLng(55.794587592491986, 49.125150450088604)
-            )
-        ))
+        pathPoints.postValue(mutableListOf())
+        timeInSeconds.postValue(0L)
+        timeInMillis.postValue(0L)
     }
 
     override fun onCreate() {
@@ -73,9 +72,9 @@ class TrainingService : LifecycleService() {
         postInitialValues()
         fusedLocationProviderClient = FusedLocationProviderClient(this)
 
-        isTracking.observe(this, Observer {
+        isTracking.observe(this) {
             updateLocationTracking(it)
-        })
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -86,11 +85,11 @@ class TrainingService : LifecycleService() {
                         startForegroundService()
                         isFirstRun = false
                     } else {
-                        Log.d(TAG, "Resuming service...")
+                        startTimer()
                     }
                 }
                 ACTION_PAUSE -> {
-                    Log.d(TAG, "Paused service")
+                    pauseService()
                 }
                 ACTION_STOP -> {
                     Log.d(TAG, "Stopped service")
@@ -134,6 +133,38 @@ class TrainingService : LifecycleService() {
         }
     }
 
+    private var isTimerEnabled = false
+    private var lapTime = 0L
+    private var timeRun = 0L
+    private var timeStarted = 0L
+    private var lastSecondTimestamp = 0L
+
+    private fun startTimer() {
+        addEmptyPolyline()
+        isTracking.postValue(true)
+        timeStarted = System.currentTimeMillis()
+        isTimerEnabled = true
+        CoroutineScope(Dispatchers.Main).launch {
+            while (isTracking.value!!) {
+                // time difference between now and timeStarted
+                lapTime = System.currentTimeMillis() - timeStarted
+                // post the new lapTime
+                timeInMillis.postValue(timeRun + lapTime)
+                if (timeInMillis.value!! >= lastSecondTimestamp + 1000L) {
+                    timeInSeconds.postValue(timeInSeconds.value!! + 1)
+                    lastSecondTimestamp += 1000L
+                }
+                delay(TIMER_UPDATE_INTERVAL)
+            }
+            timeRun += lapTime
+        }
+    }
+
+    private fun pauseService() {
+        isTracking.postValue(false)
+        isTimerEnabled = false
+    }
+
     private fun addPathPoint(location: Location?) {
         location?.let {
             val pos = LatLng(location.latitude, location.longitude)
@@ -150,7 +181,7 @@ class TrainingService : LifecycleService() {
     } ?: pathPoints.postValue(mutableListOf(mutableListOf()))
 
     private fun startForegroundService() {
-        addEmptyPolyline()
+        startTimer()
         isTracking.postValue(true)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE)
